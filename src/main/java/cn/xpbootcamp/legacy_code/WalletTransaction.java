@@ -8,6 +8,8 @@ import cn.xpbootcamp.legacy_code.utils.RedisDistributedLock;
 import javax.transaction.InvalidTransactionException;
 
 public class WalletTransaction {
+    public static final String ID_PRE = "t_";
+    public static final int TWENTY_DAYS = 20 * 24 * 60 * 60 * 1000;
     private String id;
     private Long buyerId;
     private Long sellerId;
@@ -18,19 +20,23 @@ public class WalletTransaction {
     private WalletService walletService;
 
     public WalletTransaction(String preAssignedId, Long buyerId, Long sellerId, Double amount) {
+        getWalletTransactionId(preAssignedId);
         this.amount = amount;
+        this.buyerId = buyerId;
+        this.sellerId = sellerId;
+        this.status = STATUS.TO_BE_EXECUTED;
+        this.createdTimestamp = System.currentTimeMillis();
+    }
+
+    private void getWalletTransactionId(String preAssignedId) {
         if (hasPreAssignedId(preAssignedId)) {
             this.id = preAssignedId;
         } else {
             this.id = IdGenerator.generateTransactionId();
         }
-        if (!this.id.startsWith("t_")) {
-            this.id = "t_" + preAssignedId;
+        if (!this.id.startsWith(ID_PRE)) {
+            this.id = ID_PRE + preAssignedId;
         }
-        this.buyerId = buyerId;
-        this.sellerId = sellerId;
-        this.status = STATUS.TO_BE_EXECUTED;
-        this.createdTimestamp = System.currentTimeMillis();
     }
 
     private boolean hasPreAssignedId(String preAssignedId) {
@@ -54,7 +60,7 @@ public class WalletTransaction {
             if (isExecuted()) {
                 return true;
             }
-            if (isOver20Days()) {
+            if (isTimeout()) {
                 this.status = STATUS.EXPIRED;
                 return false;
             }
@@ -77,9 +83,9 @@ public class WalletTransaction {
         return walletTransactionId != null;
     }
 
-    private boolean isOver20Days() {
+    private boolean isTimeout() {
         long executionInvokedTimestamp = System.currentTimeMillis();
-        return executionInvokedTimestamp - createdTimestamp > 1728000000;
+        return executionInvokedTimestamp - createdTimestamp > TWENTY_DAYS;
     }
 
     private boolean isTransactionExceptional() {
