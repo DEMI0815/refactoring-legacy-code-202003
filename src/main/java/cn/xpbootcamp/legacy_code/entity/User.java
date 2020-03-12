@@ -11,4 +11,12 @@ public class User {
     public void setBalance(double balance) {
         this.balance = balance;
     }
+
+    public void increase(double amount) {
+        balance += amount;
+    }
+
+    public void decrease(double amount) {
+        balance -= amount;
+    }
 }

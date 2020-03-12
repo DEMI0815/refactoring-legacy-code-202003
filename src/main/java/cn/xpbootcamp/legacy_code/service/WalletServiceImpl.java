@@ -13,8 +13,8 @@ public class WalletServiceImpl implements WalletService {
         User buyer = userRepository.find(buyerId);
         if (buyer.getBalance() >= amount) {
             User seller = userRepository.find(sellerId);
-            seller.setBalance(seller.getBalance() + amount);
-            buyer.setBalance(buyer.getBalance() - amount);
+            seller.increase(amount);
+            buyer.decrease(amount);
             return UUID.randomUUID().toString() + id;
         } else {
             return null;
