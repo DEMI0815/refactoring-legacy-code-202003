@@ -5,8 +5,6 @@ import cn.xpbootcamp.legacy_code.repository.UserRepository;
 import cn.xpbootcamp.legacy_code.repository.UserRepositoryImpl;
 import cn.xpbootcamp.legacy_code.utils.IdGenerator;
 
-import java.util.UUID;
-
 public class WalletServiceImpl implements WalletService {
     private UserRepository userRepository = new UserRepositoryImpl();
 
