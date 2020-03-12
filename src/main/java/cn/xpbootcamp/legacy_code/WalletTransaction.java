@@ -2,7 +2,6 @@ package cn.xpbootcamp.legacy_code;
 
 import cn.xpbootcamp.legacy_code.enums.STATUS;
 import cn.xpbootcamp.legacy_code.service.WalletService;
-import cn.xpbootcamp.legacy_code.service.WalletServiceImpl;
 import cn.xpbootcamp.legacy_code.utils.IdGenerator;
 import cn.xpbootcamp.legacy_code.utils.RedisDistributedLock;
 
@@ -18,10 +17,9 @@ public class WalletTransaction {
 
     private WalletService walletService;
 
-
     public WalletTransaction(String preAssignedId, Long buyerId, Long sellerId, Double amount) {
         this.amount = amount;
-        if (preAssignedId != null && !preAssignedId.isEmpty()) {
+        if (hasPreAssignedId(preAssignedId)) {
             this.id = preAssignedId;
         } else {
             this.id = IdGenerator.generateTransactionId();
@@ -35,28 +33,32 @@ public class WalletTransaction {
         this.createdTimestamp = System.currentTimeMillis();
     }
 
+    private boolean hasPreAssignedId(String preAssignedId) {
+        return preAssignedId != null && !preAssignedId.isEmpty();
+    }
+
     public boolean execute() throws InvalidTransactionException {
-        if (buyerId == null || (sellerId == null || amount < 0.0)) {
+        if (isTransactionExceptional()) {
             throw new InvalidTransactionException("This is an invalid transaction");
         }
-        if (isExecuted()) return true;
+        if (isExecuted()) {
+            return true;
+        }
         boolean isLocked = false;
         try {
             isLocked = RedisDistributedLock.getSingletonInstance().lock(id);
 
-            // 锁定未成功，返回false
             if (!isLocked) {
                 return false;
             }
-            if (isExecuted()) return true; // double check
-            long executionInvokedTimestamp = System.currentTimeMillis();
-            // 交易超过20天
-            if (executionInvokedTimestamp - createdTimestamp > 1728000000) {
+            if (isExecuted()) {
+                return true;
+            }
+            if (isOver20Days()) {
                 this.status = STATUS.EXPIRED;
                 return false;
             }
-            String walletTransactionId = walletService.moveMoney(id, buyerId, sellerId, amount);
-            if (walletTransactionId != null) {
+            if (isMoveMoneySuccess()) {
                 this.status = STATUS.EXECUTED;
                 return true;
             } else {
@@ -68,6 +70,20 @@ public class WalletTransaction {
                 RedisDistributedLock.getSingletonInstance().unlock(id);
             }
         }
+    }
+
+    private boolean isMoveMoneySuccess() {
+        String walletTransactionId = walletService.moveMoney(id, buyerId, sellerId, amount);
+        return walletTransactionId != null;
+    }
+
+    private boolean isOver20Days() {
+        long executionInvokedTimestamp = System.currentTimeMillis();
+        return executionInvokedTimestamp - createdTimestamp > 1728000000;
+    }
+
+    private boolean isTransactionExceptional() {
+        return buyerId == null || (sellerId == null || amount < 0.0);
     }
 
     public void setWalletService(WalletService walletService) {
