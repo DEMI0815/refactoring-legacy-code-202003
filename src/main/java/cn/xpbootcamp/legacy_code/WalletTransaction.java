@@ -12,15 +12,15 @@ public class WalletTransaction {
     private String id;
     private Long buyerId;
     private Long sellerId;
-    private Long productId;
-    private String orderId;
     private Long createdTimestamp;
     private Double amount;
     private STATUS status;
-    private String walletTransactionId;
+
+    private WalletService walletService;
 
 
-    public WalletTransaction(String preAssignedId, Long buyerId, Long sellerId, Long productId, String orderId) {
+    public WalletTransaction(String preAssignedId, Long buyerId, Long sellerId, Double amount) {
+        this.amount = amount;
         if (preAssignedId != null && !preAssignedId.isEmpty()) {
             this.id = preAssignedId;
         } else {
@@ -31,8 +31,6 @@ public class WalletTransaction {
         }
         this.buyerId = buyerId;
         this.sellerId = sellerId;
-        this.productId = productId;
-        this.orderId = orderId;
         this.status = STATUS.TO_BE_EXECUTED;
         this.createdTimestamp = System.currentTimeMillis();
     }
@@ -41,7 +39,7 @@ public class WalletTransaction {
         if (buyerId == null || (sellerId == null || amount < 0.0)) {
             throw new InvalidTransactionException("This is an invalid transaction");
         }
-        if (status == STATUS.EXECUTED) return true;
+        if (isExecuted()) return true;
         boolean isLocked = false;
         try {
             isLocked = RedisDistributedLock.getSingletonInstance().lock(id);
@@ -50,17 +48,15 @@ public class WalletTransaction {
             if (!isLocked) {
                 return false;
             }
-            if (status == STATUS.EXECUTED) return true; // double check
+            if (isExecuted()) return true; // double check
             long executionInvokedTimestamp = System.currentTimeMillis();
             // 交易超过20天
             if (executionInvokedTimestamp - createdTimestamp > 1728000000) {
                 this.status = STATUS.EXPIRED;
                 return false;
             }
-            WalletService walletService = new WalletServiceImpl();
             String walletTransactionId = walletService.moveMoney(id, buyerId, sellerId, amount);
             if (walletTransactionId != null) {
-                this.walletTransactionId = walletTransactionId;
                 this.status = STATUS.EXECUTED;
                 return true;
             } else {
@@ -74,4 +70,19 @@ public class WalletTransaction {
         }
     }
 
+    public void setWalletService(WalletService walletService) {
+        this.walletService = walletService;
+    }
+
+    public boolean isExecuted() {
+        return status == STATUS.EXECUTED;
+    }
+
+    public String getId() {
+        return id;
+    }
+
+    public STATUS getStatus() {
+        return status;
+    }
 }
