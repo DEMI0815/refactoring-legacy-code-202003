@@ -3,6 +3,7 @@ package cn.xpbootcamp.legacy_code.service;
 import cn.xpbootcamp.legacy_code.entity.User;
 import cn.xpbootcamp.legacy_code.repository.UserRepository;
 import cn.xpbootcamp.legacy_code.repository.UserRepositoryImpl;
+import cn.xpbootcamp.legacy_code.utils.IdGenerator;
 
 import java.util.UUID;
 
@@ -15,7 +16,7 @@ public class WalletServiceImpl implements WalletService {
             User seller = userRepository.find(sellerId);
             seller.increase(amount);
             buyer.decrease(amount);
-            return UUID.randomUUID().toString() + id;
+            return IdGenerator.generateTransactionId() + id;
         } else {
             return null;
         }
